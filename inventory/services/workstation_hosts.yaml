@@ -1,0 +1,77 @@
+---
+# Группа хостов, с которых выполняются команды к vSphere API.
+# Содержит только машину-прокси с зависимостями (pyvmomi и т.п.).
+vsphere_api_host:
+  hosts:
+    vsphere_api_proxy:
+      ansible_host: 10.0.1.10
+      ansible_user: automation
+      ansible_ssh_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      ansible_sudo_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+
+  vars:
+    sphere:
+      folder: "/DC1/vm/Projects/demo/testbed-01/app"
+
+# Группа ВМ для деплоя на vSphere.
+# После деплоя можно запускать задачи параллельно,
+# передавая в плейбук только нужную группу любого другого инвентаря.
+vms:
+  hosts:
+    app_alt_10:
+      ansible_host: 10.0.2.11
+      vm_template: "Template_Alt_10"
+
+    app_redos_7:
+      ansible_host: 10.0.2.12
+      vm_template: "Template_RedOS_7"
+
+    app_redos_8:
+      ansible_host: 10.0.2.13
+      vm_template: "Template_RedOS_8"
+
+    app_astra_17:
+      ansible_host: 10.0.2.14
+      vm_template: "Template_Astra_17"
+
+    app_astra_18:
+      ansible_host: 10.0.2.15
+      vm_template: "Template_Astra_18"
+
+    app_astra_ce:
+      ansible_host: 10.0.2.16
+      vm_template: "Template_Astra_CE"
+
+    app_debian_12:
+      ansible_host: 10.0.2.17
+      vm_template: "Template_Debian_12"
+
+    app_debian_11:
+      ansible_host: 10.0.2.18
+      vm_template: "Template_Debian_11"
+
+    app_ubuntu_22:
+      ansible_host: 10.0.2.19
+      vm_template: "Template_Ubuntu_22"
+
+    app_ubuntu_24:
+      ansible_host: 10.0.2.20
+      vm_template: "Template_Ubuntu_24"
+
+    app_rosa_12:
+      ansible_host: 10.0.2.21
+      vm_template: "Template_ROSA_12"
+
+  vars:
+    ansible_user: deploy
+    ansible_ssh_pass: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      <зашифрованный блоб>
+    ansible_sudo_pass: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      <зашифрованный блоб>
+    ansible_become_method: sudo

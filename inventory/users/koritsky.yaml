@@ -1,0 +1,84 @@
+---
+koritsky_hosts:
+  hosts:
+    gost_proxy_server:
+      ## Параметры доступа к машине, на которой запущен
+      ## контейнер с прокси-сервером.
+      ansible_host: 10.0.1.10
+      ansible_user: automation
+      ansible_ssh_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      ansible_sudo_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+
+    appliance_01:
+      ansible_host: 10.0.3.11
+      ansible_user: deploy
+      ansible_ssh_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      ansible_sudo_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      vm_deploy_sphere_template: "Template_Debian_11"
+      vm_deploy_sphere_name: "appliance_01_koritsky"
+      target_vm_id: 501
+      target_vm_usb_port: "host=1-8,usb3=0"
+
+    portable_unit_01:
+      ansible_host: 10.0.3.21
+      ansible_user: deploy
+      ansible_ssh_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      ansible_sudo_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      service_ip: 10.0.2.30
+      target_prefix: koritsky
+      target_vm_id: 1001
+
+    workstation_01:
+      ansible_host: 10.0.3.51
+      ansible_user: deploy
+      ansible_ssh_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      ansible_sudo_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      target_vm_id: 1101
+      target_prefix: koritsky
+      vector_service_config: workstation_a
+
+    workstation_02:
+      ansible_host: 10.0.3.61
+      ansible_user: deploy
+      ansible_ssh_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      ansible_sudo_pass: !vault |
+        $ANSIBLE_VAULT;1.1;AES256
+        <зашифрованные данные>
+      target_vm_id: 1201
+      target_prefix: koritsky
+      vector_service_config: workstation_b
+
+  vars:
+    identify: koritsky
+
+    service_proxy_admin_port: 1000000
+
+    hsm_proxy_sec_port: 1000001
+    hsm_proxy_operator_port: 1000002
+
+    tls_gateway_resourse_port: 1000003
+
+    ansible_become_method: sudo
+
+    sphere:
+      folder: "/DC1/vm/Projects/demo/Koritsky_project"
+
+    mail_address: "koritsky@example.internal"

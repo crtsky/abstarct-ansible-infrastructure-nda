@@ -10,39 +10,40 @@
 ```
 ├── ansible.cfg
 ├── inventory
-│ ├── group_a
-│ └── group_b
-│ ├── services
-│ │ └── workstation_hosts.yaml
-│ └── users
-│ ├── user_one_hosts_list.yaml
-│ └── user_two_hosts_list.yaml
+│   ├── group_a
+│   └── group_b
+│     ├── services
+│     │   └── workstation_hosts.yaml
+│     └── users
+│         ├── user_one_hosts_list.yaml
+│         └── user_two_hosts_list.yaml
 |
 ├── playbooks
-│ ├── group_a
-│ └── group_b
-│ └── group_b_project_playbook.yaml
+│   ├── group_a
+│   └── group_b
+│       └── group_b_project_playbook.yaml
 |
 ├── roles
-│ └── role_one
-│ ├── defaults
-│ ├── files
-│ │ └── file_for_copy_to_host.sh
-│ ├── handlers
-│ │ ├── main.yml
-│ │ └── role_handlers.yaml
-│ ├── README.md
-│ ├── tasks
-│ │ ├── main.yml
-│ │ └── role_task.yaml
-│ └── vars
-│ ├── main.yml
-│ └── role_vars.yaml
+│   └── role_one
+│       ├── defaults
+│       ├── files
+│       │   └── file_for_copy_to_host.sh
+│       ├── handlers
+│       │   ├── main.yml
+│       │   └── role_handlers.yaml
+│       ├── README.md
+│       ├── tasks
+│       │   ├── main.yml
+│       │   └── role_task.yaml
+│       └── vars
+│           ├── main.yml
+│           └── role_vars.yaml
 |
 └── vars
-├── group_a
-└── group_b
-└── group_b_project_general_vars.yaml
+    ├── group_a
+    ├── group_b
+    |    └── group_b_project_general_vars.yaml
+    └── global_vars.yaml
 ```
 
 ## Основные компоненты
@@ -69,6 +70,3 @@ ansible-galaxy init your_role
 
 **`vars`**  
 Глобальные для проекта переменные, разложенные по группам хостов.
-
-
-
