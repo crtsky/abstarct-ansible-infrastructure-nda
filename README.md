@@ -70,3 +70,32 @@ ansible-galaxy init your_role
 
 **`vars`**  
 Глобальные для проекта переменные, разложенные по группам хостов.
+
+## Принцип работы ролей и плейбуков, представленных в репозитории
+
+```mermaid
+flowchart TD
+    A[Запуск плейбука] --> B[Передача hypervisor_type из Semaphore UI]
+    B --> C{Какой гипервизор?}
+
+    C -->|proxmox| D[Быстрая локальная проверка]
+    C -->|vsphere| E[Полноценный тест ОС]
+
+    D --> D1[users_service_a.yaml Play 1: создаём ВМ через proxmox_kvm]
+    D1 --> D2[Play 2: ждём SSH, ставим базовые пакеты]
+    D2 --> D3[Play 3: роли установки]
+
+    E --> E1[vmware_vms.yaml асинхронно разворачиваем пул ВМ на vSphere]
+    E1 --> E2[Пул готов]
+    E2 --> E3[Отдельный запуск users_service_a.yaml без создания ВМ]
+    E3 --> E4[Play 3: роли установки]
+
+    D3 --> F[Общие роли установки]
+    E4 --> F
+
+    F --> F1[install_vector Vector и юнита systemd]
+    F1 --> F2[install_pki PKI Client, сертификаты, лицензия]
+    F2 --> F3[install_workstation_app пакет и xml-конфиг]
+
+    F3 --> G[Готово: рабочее место настроено]
+```
