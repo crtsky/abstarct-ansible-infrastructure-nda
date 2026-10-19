@@ -1,0 +1,261 @@
+---
+- name: Deploy VM
+  # На этом хосте установлены зависимости для работы с vSphere API
+  # (pyvmomi и т.п.). Должен присутствовать в инвентаре.
+  hosts: vsphere_api_proxy
+  gather_facts: false
+
+  vars:
+    # vm_process передаётся из semaphore ui 
+    snapshot_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+
+  vars_files:
+    - "../vars/global_vars.yaml"
+
+  module_defaults:
+    group/vmware:
+      hostname: "{{ vcenter.hostname }}"
+      username: "{{ vcenter.username }}"
+      password: "{{ vcenter.password }}"
+      validate_certs: "{{ vcenter.validate_certs | default(true) }}"
+      folder: "{{ vm_folder }}"
+    community.vmware.vmware_guest:
+      datacenter: "{{ vcenter.datacenter }}"
+      resource_pool: "{{ vcenter.resource_pool }}"
+      datastore: "{{ vcenter.datastore }}"
+      cluster: "{{ vcenter.cluster }}"
+    community.vmware.vmware_vm_shell:
+      datacenter: "{{ vcenter.datacenter }}"
+      cluster: "{{ vcenter.cluster }}"
+      wait_for_process: true
+
+  tasks:
+
+    - name: Удаление виртуальных машин
+      community.vmware.vmware_guest:
+        name: "{{ hostvars[item]['inventory_hostname'] }}"
+        state: absent
+        force: true
+      loop: "{{ groups['vms'] }}"
+      when: vm_process == 'remove'
+
+
+    - name: Деплой виртуальных машин
+      community.vmware.vmware_guest:
+        name: "{{ hostvars[item]['inventory_hostname'] }}"
+        template: "{{ hostvars[item]['vm_template'] }}"
+        state: poweredon
+        hardware:
+          memory_mb: "{{ hostvars[item]['vm_memory_mb'] | default(4096) }}"
+          num_cpus: "{{ hostvars[item]['vm_cpus'] | default(4) }}"
+        annotation: "{{ hostvars[item]['ansible_host'] }}"
+      loop: "{{ groups['vms'] }}"
+      async: 600
+      poll: 0
+      register: vm_deploy_result
+      when: vm_process == 'deploy'
+
+
+    - name: Ожидание завершения деплоя виртуальных машин
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ vm_deploy_result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      register: deploy_wait
+      until: deploy_wait.finished
+      retries: "{{ retries.max }}"
+      delay: "{{ retries.min_delay }}"
+      when: vm_process == 'deploy'
+
+
+    - name: Ожидание доступности VMware tools
+      community.vmware.vmware_guest_tools_wait:
+        name: "{{ hostvars[item]['inventory_hostname'] }}"
+      loop: "{{ groups['vms'] }}"
+      when: vm_process == 'deploy'
+
+    # Настройка сети через systemd-networkd
+    #
+    # !!! Пароль передаётся в командной строке sudo -S.
+    # В продакшене использовать passwordless sudo (NOPASSWD в sudoers)
+    # или предварительно настроенный SSH-доступ.
+    - name: Определение имён интерфейсов виртуальных машин
+      community.vmware.vmware_vm_shell:
+        vm_id: "{{ hostvars[item]['inventory_hostname'] }}"
+        vm_username: "{{ hostvars[item]['ansible_user'] }}"
+        vm_password: "{{ hostvars[item]['ansible_ssh_pass'] }}"
+        vm_shell: /bin/bash
+        vm_shell_args: |
+          -c "ip -o link show | grep -v 'LOOPBACK' | awk -F': ' '{print \$2}' | grep -E '^(eth|ens|enp|eno)' | head -1 > /tmp/interface_name"
+      loop: "{{ groups['vms'] }}"
+      async: 300
+      poll: 0
+      register: vm_interface_check_result
+      when: vm_process == 'deploy'
+      no_log: true
+
+
+    - name: Ожидание завершения определения сетевых интерфейсов
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ vm_interface_check_result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      register: interface_wait
+      until: interface_wait.finished
+      retries: "{{ retries.max }}"
+      delay: "{{ retries.min_delay }}"
+      when: vm_process == 'deploy'
+
+
+    - name: Создание конфигураций systemd-networkd
+      community.vmware.vmware_vm_shell:
+        vm_id: "{{ hostvars[item]['inventory_hostname'] }}"
+        vm_username: "{{ hostvars[item]['ansible_user'] }}"
+        vm_password: "{{ hostvars[item]['ansible_ssh_pass'] }}"
+        vm_shell: /bin/sh
+        vm_shell_args: |
+          -c "echo '{{ hostvars[item]['ansible_sudo_pass'] }}' | sudo -S sh -c '
+          INTERFACE=$(cat /tmp/interface_name);
+          mkdir -p /etc/systemd/network;
+          
+          cat > /etc/systemd/network/10-\${INTERFACE}.network << EOF
+          [Match]
+          Name=\${INTERFACE}
+
+          [Network]
+          Address={{ hostvars[item]['ansible_host'] }}/{{ subnet_cidr_notation }}
+          Gateway={{ gate }}
+          DNS={{ dns }}
+          EOF
+          
+          chmod 644 /etc/systemd/network/10-\${INTERFACE}.network'"
+      loop: "{{ groups['vms'] }}"
+      async: 300
+      poll: 0
+      register: vm_network_config_result
+      when: vm_process == 'deploy'
+      no_log: true
+
+
+    - name: Ожидание создания конфигурационных файлов
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ vm_network_config_result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      register: network_config_wait
+      until: network_config_wait.finished
+      retries: "{{ retries.max }}"
+      delay: "{{ retries.min_delay }}"
+      when: vm_process == 'deploy'
+
+
+    - name: Включение и перезапуск systemd-networkd
+      community.vmware.vmware_vm_shell:
+        vm_id: "{{ hostvars[item]['inventory_hostname'] }}"
+        vm_username: "{{ hostvars[item]['ansible_user'] }}"
+        vm_password: "{{ hostvars[item]['ansible_ssh_pass'] }}"
+        vm_shell: /bin/sh
+        vm_shell_args: |
+          -c "echo '{{ hostvars[item]['ansible_sudo_pass'] }}' | sudo -S sh -c '
+          systemctl daemon-reload;
+          systemctl enable systemd-networkd;
+          systemctl restart systemd-networkd'"
+      loop: "{{ groups['vms'] }}"
+      async: 300
+      poll: 0
+      register: vm_networkd_enable_result
+      when: vm_process == 'deploy'
+      no_log: true
+
+
+    - name: Ожидание завершения включения systemd-networkd
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ vm_networkd_enable_result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      register: networkd_enable_wait
+      until: networkd_enable_wait.finished
+      retries: "{{ retries.max }}"
+      delay: "{{ retries.min_delay }}"
+      when: vm_process == 'deploy'
+
+
+    - name: Выключение виртуальных машин
+      community.vmware.vmware_guest:
+        name: "{{ hostvars[item]['inventory_hostname'] }}"
+        state: shutdownguest
+      loop: "{{ groups['vms'] }}"
+      async: 300
+      poll: 0
+      register: vm_shutdown_result
+      when: vm_process in ['deploy', 'snapshot']
+      
+
+    - name: Ожидание выключения виртуальных машин
+      community.vmware.vmware_guest_info:
+        name: "{{ hostvars[item]['inventory_hostname'] }}"
+        datacenter: "{{ vcenter.datacenter }}"
+      loop: "{{ groups['vms'] }}"
+      register: vm_info
+      until:
+        - vm_info.instance is defined
+        - vm_info.instance.hw_power_status == "poweredOff"
+      retries: "{{ retries.max }}"
+      delay: "{{ retries.min_delay }}"
+      when: vm_process in ['deploy', 'snapshot']
+      
+
+    - name: Создание снапшотов
+      community.vmware.vmware_guest_snapshot:
+        datacenter: "{{ vcenter.datacenter }}"
+        folder: "{{ vm_folder }}"
+        name: "{{ hostvars[item]['inventory_hostname'] }}"
+        state: present
+        snapshot_name: "snapshot {{ snapshot_timestamp }}"
+      loop: "{{ groups['vms'] }}"
+      async: 300
+      poll: 0
+      register: vm_snapshot_result
+      when: vm_process in ['deploy', 'snapshot']
+      
+
+    - name: Ожидание создания снапшотов
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ vm_snapshot_result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      register: snapshot_wait
+      until: snapshot_wait.finished
+      retries: "{{ retries.max }}"
+      delay: "{{ retries.min_delay }}"
+      when: vm_process in ['deploy', 'snapshot']
+      
+
+    - name: Включение виртуальных машин
+      community.vmware.vmware_guest:
+        name: "{{ hostvars[item]['inventory_hostname'] }}"
+        state: poweredon
+      loop: "{{ groups['vms'] }}"
+      async: 600
+      poll: 0
+      register: vm_poweron_result
+      when: vm_process in ['deploy', 'snapshot']
+      
+
+    - name: Ожидание включения виртуальных машин
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ vm_poweron_result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      register: poweron_wait
+      until: poweron_wait.finished
+      retries: "{{ retries.max }}"
+      delay: "{{ retries.min_delay }}"
+      when: vm_process in ['deploy', 'snapshot']
+      

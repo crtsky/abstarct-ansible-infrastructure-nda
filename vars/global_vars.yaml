@@ -37,15 +37,16 @@ file_storage_port: 7777
 file_storage_url: "http://{{ file_storage_ip }}:{{ file_storage_port }}"
 
 # --- Параметры vSphere ---
-vcenter_hostname: "vcenter.example.internal"
-vcenter_username: "automation@example.internal"
-vcenter_password: !vault |
-  $ANSIBLE_VAULT;1.1;AES256
-  <зашифрованные данные>
-datacenter_name: "DC1"
-cluster_name: "Cluster1"
-resource_pool_name: "Resources"
-datastore_name: "Datastore1"
+vcenter:
+  hostname: "vcenter.example.internal"
+  username: "automation@example.internal"
+  password: !vault |
+    $ANSIBLE_VAULT;1.1;AES256
+    <зашифрованные данные>
+  datacenter: "DC1"
+  cluster: "Cluster1"
+  resource_pool: "Resources"
+  datastore: "Datastore1"
 
 # --- Artifactory ---
 artifactory_url: "https://artifactory.example.internal/artifactory/repo/abstract/local/main"
