@@ -1,0 +1,75 @@
+---
+## global_vars.yaml
+## Общие переменные для всех плейбуков (демонстрационный пример)
+
+# --- Сеть ---
+gate: 10.0.0.1
+subnet: 255.255.0.0
+subnet_cidr_notation: 16
+dns: 10.0.87.53
+
+# --- Прокси-сервисы ---
+# Адрес машины, на которой работает прокси-сервер
+crypto_proxy_server_ip: 10.0.1.10
+
+# Адрес прокси до внутреннего сервиса (псевдоним)
+service_proxy_ip: "{{ crypto_proxy_server_ip }}"
+
+# Домен сервисных машин
+service_domain: "service.example.internal"
+
+# Адрес и порт прокси, перенаправляющего запросы к CA
+ca_root_proxy_ip: "{{ crypto_proxy_server_ip }}"
+ca_root_proxy_port: 300
+
+# Адрес машины, на которой работает прокси к 
+hsm_proxy_ip: 10.0.1.20
+
+# Адрес и порт точки распространения сертификатов
+ca_pub_point_ip: 10.0.2.200
+ca_pub_point_port: 7000
+
+# --- Инфраструктурные сервисы ---
+tls_gateway_ip: 10.0.3.10
+log_storage_ip: 10.0.3.20
+file_storage_ip: 10.0.1.10
+file_storage_port: 7777
+file_storage_url: "http://{{ file_storage_ip }}:{{ file_storage_port }}"
+
+# --- Параметры vSphere ---
+vcenter_hostname: "vcenter.example.internal"
+vcenter_username: "automation@example.internal"
+vcenter_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  <зашифрованные данные>
+datacenter_name: "DC1"
+cluster_name: "Cluster1"
+resource_pool_name: "Resources"
+datastore_name: "Datastore1"
+
+# --- Artifactory ---
+artifactory_url: "https://artifactory.example.internal/artifactory/repo/abstract/local/main"
+
+# --- Глобальные ретраи и таймауты ---
+max_retries: 15
+min_retries: 5
+max_delay: 30
+min_delay: 5
+
+# --- Учётные данные Artifactory ---
+registry_login: koritsky.roman.token@token.com
+registry_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  <зашифрованные данные>
+
+# --- Proxmox ---
+proxmox_api_user: root@pam
+proxmox_api_host: 10.0.4.10
+proxmox_api_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  <зашифрованные данные>
+
+# --- SSH ---
+# В демо-окружении проверка ключей отключена для упрощения.
+# В продакшене использовать known_hosts или ssh-keyscan.
+ansible_host_key_checking: false
