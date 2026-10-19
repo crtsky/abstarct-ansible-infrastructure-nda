@@ -1,0 +1,60 @@
+---
+# tasks file for pki_install
+
+- name: Создание директории хранения файлов PKI Client
+  ansible.builtin.file:
+    path: "{{ workdir }}"
+    state: directory
+    mode: "0755"
+
+- name: Создание директории хранения сертификатов
+  ansible.builtin.file:
+    path: "{{ certdir }}"
+    state: directory
+    mode: "0755"
+
+- name: Загрузка архива PKI Client
+  ansible.builtin.get_url:
+    url: "{{ storage_link }}/{{ pki_package_link }}"
+    dest: "{{ workdir }}"
+    mode: "0644"
+
+- name: Загрузка сертификатов
+  ansible.builtin.get_url:
+    url: "{{ item }}"
+    dest: "{{ certdir }}"
+    mode: "0644"
+  loop: "{{ pki_certificates }}"
+
+- name: Распаковка архива PKI Client
+  ansible.builtin.unarchive:
+    src: "{{ workdir }}/{{ pki_package_archive }}"
+    dest: "{{ workdir }}"
+    remote_src: true
+
+- name: Определение пути к установочному скрипту по пакетному менеджеру
+  ansible.builtin.set_fact:
+    install_directory: >-
+      {{ package_workdir }}/{{
+        'deb' if ansible_pkg_mgr == 'apt'
+        else 'rpm' if ansible_pkg_mgr in ['yum', 'dnf', 'rpm', 'apt_rpm', 'urpmi']
+        else 'unknown'
+      }}
+
+- name: Загрузка лицензии для PKI Client
+  ansible.builtin.get_url:
+    url: "{{ lic_link }}"
+    dest: "{{ install_directory }}"
+    mode: "0644"
+
+- name: Запуск установочного скрипта PKI Client
+  ansible.builtin.command:
+    cmd: "{{ install_directory }}/run.sh --accept-eula"
+  register: script_run_result
+  changed_when: "'already installed' not in script_run_result.stdout"
+
+- name: Инициализация пула энтропии
+  ansible.builtin.command:
+    cmd: "{{ entropy_ctl_path }} setentropylist -c -l native 1"
+  register: entropy_command_result
+  changed_when: entropy_command_result.rc == 0

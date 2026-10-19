@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gateway-config version="1.0"
+    xmlns="https://schemas.example.internal/xsd/iot-gateway/config/v1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://schemas.example.internal/xsd/iot-gateway/config/v1 gateway-config.xsd">
+
+    <profile name="case_01_basic">
+        <upstream-set>
+            <upstream host="{{ gate }}.{{ dns }}" port="443">
+                <connection-set>
+                    <reservation>
+                        <peer-primary name="{{ identify }}-0"/>
+                        <peer-reserved name="{{ identify }}-1"/>
+                    </reservation>
+                </connection-set>
+            </upstream>
+        </upstream-set>
+        <controller final-mode="configuration" interface="uart">
+            <uart speed="115200" data-bits="8" stop-bits="1" parity="none"/>
+        </controller>
+        <endpoint>
+            <links>
+                <purpose sign="true" encrypt="true"/>
+            </links>
+            <attributes>
+                <name>
+                    <source>
+                        <user-input property="name"/>
+                    </source>
+                </name>
+                <serial>
+                    <source>
+                        <user-input property="serial"/>
+                    </source>
+                </serial>
+                <address>
+                    <source>
+                        <user-input property="address"/>
+                    </source>
+                </address>
+                <service-address>
+                    <source>
+                        <user-input property="service-address"/>
+                    </source>
+                </service-address>
+                <default-port>
+                    <fixed-value value="1234"/>
+                </default-port>
+            </attributes>
+        </endpoint>
+        <file print="true"/>
+    </profile>
+
+    <profile name="case_02_manual_routing">
+        <upstream-set>
+            <upstream host="{{ gate }}.{{ dns }}" port="443">
+                <connection-set>
+                    <reservation>
+                        <peer-primary name="{{ identify }}-0"/>
+                        <peer-reserved name="{{ identify }}-1"/>
+                    </reservation>
+                </connection-set>
+            </upstream>
+        </upstream-set>
+        <controller final-mode="configuration" interface="uart">
+            <uart speed="115200" data-bits="8" stop-bits="1" parity="none"/>
+        </controller>
+        <endpoint>
+            <links>
+                <purpose sign="true" encrypt="true"/>
+            </links>
+            <attributes>
+                <name>
+                    <source>
+                        <user-input property="name"/>
+                    </source>
+                </name>
+                <serial>
+                    <source>
+                        <user-input property="serial"/>
+                    </source>
+                </serial>
+                <address>
+                    <source>
+                        <user-input property="address"/>
+                    </source>
+                </address>
+                <service-address>
+                    <source>
+                        <user-input property="service-address"/>
+                    </source>
+                </service-address>
+                <default-port>
+                    <fixed-value value="1234"/>
+                </default-port>
+            </attributes>
+        </endpoint>
+        <routing-command>
+            <destinations>
+                <destination>
+                    <folder path="{{ workdir }}/data"/>
+                </destination>
+            </destinations>
+        </routing-command>
+        <file print="true"/>
+    </profile>
+
+    <profile name="case_03_local_transport">
+        <upstream-set>
+            <upstream host="{{ gate }}.{{ dns }}" port="443">
+                <connection-set>
+                    <reservation>
+                        <peer-primary name="{{ identify }}-0"/>
+                        <peer-reserved name="{{ identify }}-1"/>
+                    </reservation>
+                </connection-set>
+            </upstream>
+        </upstream-set>
+        <controller final-mode="configuration" interface="uart">
+            <uart speed="115200" data-bits="8" stop-bits="1" parity="none"/>
+        </controller>
+        <endpoint>
+            <links>
+                <purpose sign="true" encrypt="true"/>
+            </links>
+            <attributes>
+                <name>
+                    <source>
+                        <user-input property="name"/>
+                    </source>
+                </name>
+                <serial>
+                    <source>
+                        <user-input property="serial"/>
+                    </source>
+                </serial>
+                <address>
+                    <source>
+                        <user-input property="address"/>
+                    </source>
+                </address>
+                <service-address>
+                    <source>
+                        <user-input property="service-address"/>
+                    </source>
+                </service-address>
+                <default-port>
+                    <fixed-value value="1234"/>
+                </default-port>
+            </attributes>
+        </endpoint>
+        <routing-command>
+            <destinations>
+                <destination transport="local"/>
+            </destinations>
+        </routing-command>
+        <file print="true"/>
+    </profile>
+
+    <profile name="case_04_gateway_csv">
+        <upstream-set>
+            <upstream host="{{ gate }}.{{ dns }}" port="443">
+                <connection-set>
+                    <reservation>
+                        <peer-primary name="{{ identify }}-0"/>
+                        <peer-reserved name="{{ identify }}-1"/>
+                    </reservation>
+                    <peer name="PEER_0"/>
+                </connection-set>
+            </upstream>
+        </upstream-set>
+        <controller final-mode="regular" interface="uart">
+            <uart speed="115200" data-bits="8" stop-bits="1" parity="none"/>
+        </controller>
+        <endpoint>
+            <links>
+                <purpose sign="true" encrypt="true"/>
+            </links>
+            <attributes>
+                <name>
+                    <source>
+                        <user-input property="name"/>
+                    </source>
+                </name>
+                <serial>
+                    <source>
+                        <user-input property="serial"/>
+                    </source>
+                </serial>
+                <address>
+                    <source>
+                        <user-input property="address"/>
+                    </source>
+                </address>
+                <service-address>
+                    <source>
+                        <user-input property="service-address"/>
+                    </source>
+                </service-address>
+                <default-port>
+                    <fixed-value value="1234"/>
+                </default-port>
+            </attributes>
+        </endpoint>
+        <routing-command>
+            <destinations>
+                <destination transport="gateway">
+                    <gateway>
+                        <address-list address-type="csv-file">
+                            <csv-file path="{{ workdir }}/data/peers.csv"/>
+                        </address-list>
+                    </gateway>
+                </destination>
+            </destinations>
+        </routing-command>
+        <file print="true"/>
+    </profile>
+</gateway-config>

@@ -1,0 +1,32 @@
+---
+# Рабочая директория для загрузки и распаковки пакета
+workdir: "{{ ansible_user_dir }}/pki_workdir"
+
+# Директория для сертификатов
+certdir: "{{ ansible_user_dir }}/pki_certs"
+
+storage_link: "https://storage.example.internal/pki"
+
+# Имя архива PKI-клиента
+pki_package_link: "pki_client.tar.gz"
+pki_package_archive: "pki_client.tar.gz"
+
+# Директория с сертификатами администратора внутри хранилища
+admin_certs_dir: "admin_certs"
+
+# Ссылка на файл лицензии
+lic_link: "https://storage.example.internal/pki/license.lic"
+
+# Рабочая директория распакованного пакета
+package_workdir: "{{ workdir }}/pki_client"
+
+# Список сертификатов для загрузки
+pki_certificates:
+  - "{{ storage_link }}/{{ admin_certs_dir }}/root_ca.cer"
+  - "{{ storage_link }}/{{ admin_certs_dir }}/crl.crl"
+  - "{{ storage_link }}/{{ admin_certs_dir }}/admin/admin.cer"
+  - "{{ storage_link }}/{{ admin_certs_dir }}/admin/admin.pfx"
+  - "{{ storage_link }}/{{ admin_certs_dir }}/service_a/service_a.cer"
+  - "{{ storage_link }}/{{ admin_certs_dir }}/service_a/service_a.pfx"
+  - "{{ storage_link }}/{{ admin_certs_dir }}/service_b/service_b.cer"
+  - "{{ storage_link }}/{{ admin_certs_dir }}/service_b/service_b.pfx"

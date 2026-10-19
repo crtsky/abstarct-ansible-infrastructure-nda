@@ -1,0 +1,149 @@
+---
+- name: Создание виртуалки с использованием cloud-init для workstation
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    target_vm_id: "{{ hostvars['workstation_01']['target_vm_id'] }}"
+    target_vm_ip: "{{ hostvars['workstation_01']['ansible_host'] }}"
+    target_prefix: "{{ hostvars['workstation_01']['target_prefix'] }}"
+
+  vars_files:
+    - "../vars/global_vars.yaml"
+
+  tasks:
+    - name: Пропустить создание ВМ, если гипервизор не proxmox
+      ansible.builtin.meta: end_play
+      when: hypervisor_type != 'proxmox'
+
+    - name: Выключение виртуалки со старой версией
+      community.proxmox.proxmox_kvm:
+        validate_certs: "{{ proxmox.validate_certs | default(true) }}"
+        api_user: "{{ proxmox.api_user }}"
+        api_host: "{{ proxmox.api_host }}"
+        api_password: "{{ proxmox.api_password }}"
+        vmid: "{{ target_vm_id }}"
+        name: "{{ target_prefix }}-ws01"
+        node: pve
+        timeout: 300
+        state: stopped
+      register: stop_vm_result
+      failed_when:
+        - stop_vm_result.failed
+        - '"does not exist in cluster" not in stop_vm_result.msg'
+
+    - name: Удаление виртуалки со старой версией
+      community.proxmox.proxmox_kvm:
+        validate_certs: "{{ proxmox.validate_certs | default(true) }}"
+        api_user: "{{ proxmox.api_user }}"
+        api_host: "{{ proxmox.api_host }}"
+        api_password: "{{ proxmox.api_password }}"
+        vmid: "{{ target_vm_id }}"
+        name: "{{ target_prefix }}-ws01"
+        node: pve
+        timeout: 300
+        state: absent
+
+    - name: Клонирование виртуалки
+      community.proxmox.proxmox_kvm:
+        validate_certs: "{{ proxmox.validate_certs | default(true) }}"
+        api_user: "{{ proxmox.api_user }}"
+        api_host: "{{ proxmox.api_host }}"
+        api_password: "{{ proxmox.api_password }}"
+        clone: "{{ clone_template | default('Debian12') }}"
+        vmid: "{{ clone_source_vmid | default(7104) }}"
+        newid: "{{ target_vm_id }}"
+        name: "{{ target_prefix }}-ws01"
+        node: pve
+        tags: ['workstation', 'app']
+        storage: local-lvm  # storage и linked clone несовместимы
+        full: true          # storage и linked clone несовместимы
+        timeout: 300
+
+    - name: Подготовка Cloud-init
+      community.proxmox.proxmox_kvm:
+        validate_certs: "{{ proxmox.validate_certs | default(true) }}"
+        api_user: "{{ proxmox.api_user }}"
+        api_host: "{{ proxmox.api_host }}"
+        api_password: "{{ proxmox.api_password }}"
+        vmid: "{{ target_vm_id }}"
+        node: pve
+        timeout: 300
+        ciupgrade: true
+        net:
+          net0: 'virtio,bridge=vmbr0'
+        ipconfig:
+          ipconfig0: 'ip={{ target_vm_ip }}/{{ network.cidr }},gw={{ network.gateway }}'
+        nameservers: "{{ network.dns_servers | join(' ') }}"
+        update: true
+
+    - name: Старт виртуалки
+      community.proxmox.proxmox_kvm:
+        validate_certs: "{{ proxmox.validate_certs | default(true) }}"
+        api_user: "{{ proxmox.api_user }}"
+        api_host: "{{ proxmox.api_host }}"
+        api_password: "{{ proxmox.api_password }}"
+        vmid: "{{ target_vm_id }}"
+        node: pve
+        timeout: 300
+        state: started
+
+
+- name: Ожидание ВМ и загрузка нужных пакетов
+  hosts: workstation_01
+  gather_facts: false
+
+  vars_files:
+    - "../../vars/demo/general_vars.yaml"
+
+  tasks:
+    - name: Пропустить ожидание и установку базовых пакетов, если гипервизор не proxmox
+      ansible.builtin.meta: end_play
+      when: hypervisor_type != 'proxmox'
+
+    - name: Ожидание доступности SSH и Python
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+        sleep: "{{ retries.min_delay }}"
+        delay: "{{ retries.min_delay }}"
+
+    - name: Сбор фактов
+      ansible.builtin.setup:
+
+    - name: Ожидание завершения cloud-init
+      ansible.builtin.command: cloud-init status --wait
+      register: cloud_init_result
+      changed_when: false
+
+    - name: Принудительное использование IPv4 для APT
+      become: true
+      ansible.builtin.copy:
+        content: |
+          Acquire::ForceIPv4 "true";
+        dest: /etc/apt/apt.conf.d/99force-ipv4
+        mode: '0644'
+
+    - name: Установка нужных пакетов
+      become: true
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      loop:
+        - curl
+        - unzip
+        - wget
+        - libftdi1-2
+
+
+- name: Загрузка и установка программ для работы workstation
+  hosts: workstation_01
+
+  vars_files:
+    - "../../vars/demo/general_vars.yaml"
+
+  roles:
+    - install_vector
+    - pki_install
+    - install_workstation_app

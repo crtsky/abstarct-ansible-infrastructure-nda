@@ -1,0 +1,42 @@
+---
+# tasks file for prepare_workstation
+
+- name: Создание директории хранения файлов workstation
+  ansible.builtin.file:
+    path: "{{ workdir }}"
+    state: directory
+    mode: "0755"
+
+- name: Загрузка пакета workstation
+  ansible.builtin.get_url:
+    url: "{{ workstation_package_link }}"
+    dest: "{{ workdir }}"
+    username: "{{ registry_login }}"
+    password: "{{ registry_password }}"
+    mode: "0644"
+  no_log: true
+
+- name: Загрузка лицензии для workstation
+  ansible.builtin.get_url:
+    url: "{{ lic_link }}"
+    dest: "{{ workdir }}"
+    mode: "0644"
+
+- name: Установка пакета workstation
+  ansible.builtin.apt:
+    deb: "{{ workdir }}/{{ workstation_package_name }}"
+    state: present
+
+- name: Создание директории конфигов приложения
+  ansible.builtin.file:
+    path: "{{ app_configs_directory }}"
+    state: directory
+    mode: "0755"
+
+- name: Создание конфига приложения
+  ansible.builtin.template:
+    src: "app-config.xml.j2"
+    dest: "{{ app_configs_directory }}/app-config.xml"
+    owner: root
+    group: root
+    mode: "0644"

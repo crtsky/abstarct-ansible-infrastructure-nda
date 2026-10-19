@@ -1,0 +1,50 @@
+sources:
+  audit-workstation_b-log:
+    type: file
+    include:
+      - "/usr/test/audit-workstation_b.log"
+    read_from: beginning
+
+  workstation_b-nginx-access-log:
+    type: file
+    include:
+      - "/tmp/app/nginx/logs/access.log"
+    read_from: beginning
+
+
+transforms:
+  re-audit-workstation_b-log:
+    type: remap
+    inputs: ["audit-workstation_b-log"]
+    source: |
+      .app = "workstation_b-workstation"
+      .user = "{{ identify }}"
+
+  re-workstation_b-nginx-access-log:
+    type: remap
+    inputs: ["workstation_b-nginx-access-log"]
+    source: |
+      .app = "workstation_b-workstation"
+      .user = "{{ identify }}"
+
+
+sinks:
+  victorialogs:
+    type: elasticsearch
+    inputs:
+      - re-audit-workstation_b-log
+      - re-workstation_b-nginx-access-log
+      - re-workstation_b-inconsistent-logs
+    endpoints: ["https://{{ log_storage_ip }}:9428/insert/elasticsearch/"]
+    api_version: v8
+    compression: gzip
+    query:
+      _msg_field: "message"
+      _time_field: "timestamp"
+      _stream_fields: "app,user"
+      ignore_fields: "source_type,host"
+    healthcheck:
+      enabled: false
+    buffer:
+      type: memory
+      max_events: 5000

@@ -1,0 +1,9 @@
+---
+# vars file for install_vector
+vector_binary: "vector"
+vector_file_storage_directory: "observability/vector/{{ vector_binary }}"
+vector_binary_link: "{{ file_storage_url }}/{{ vector_file_storage_directory }}"
+
+vector_config_path: "/etc/vector"
+vector_config_name: "config.yaml"
+vector_tmp_path: "/var/lib/vector"

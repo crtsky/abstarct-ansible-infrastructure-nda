@@ -1,0 +1,13 @@
+---
+# Рабочая директория для загрузки пакетов и лицензии
+workdir: "{{ ansible_user_dir }}/workstation_workdir"
+
+# Ссылка на пакет приложения
+workstation_package_link: "https://storage.example.internal/workstation/app.deb"
+workstation_package_name: "app.deb"
+
+# Ссылка на файл лицензии
+lic_link: "https://storage.example.internal/workstation/license.lic"
+
+# Директория для конфигурационных файлов приложения
+app_configs_directory: /etc/workstation

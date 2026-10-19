@@ -1,0 +1,72 @@
+---
+# tasks file for install_vector
+- name: Создание директории конфига Vector
+  become: true
+  become_method: "{{ user_become_method }}"
+  ansible.builtin.file:
+    path: "{{ vector_config_path }}"
+    state: directory
+    mode: "0755"
+
+- name: Создание директории временных файлов Vector
+  become: true
+  become_method: "{{ user_become_method }}"
+  ansible.builtin.file:
+    path: "{{ vector_tmp_path }}"
+    state: directory
+    mode: "0755"
+
+- name: Загрузка бинарника Vector
+  become: true
+  become_method: "{{ user_become_method }}"
+  ansible.builtin.get_url:
+    url: "{{ vector_binary_link }}"
+    dest: "/usr/bin/"
+    mode: "0755"
+
+- name: Создание конфига Vector
+  become: true
+  become_method: "{{ user_become_method }}"
+  ansible.builtin.template:
+    src: "vector-{{ vector_service_config }}.yaml.j2"
+    dest: "{{ vector_config_path }}/{{ vector_config_name }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Создание systemd юнита Vector
+  become: true
+  become_method: "{{ user_become_method }}"
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Vector
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/bin/vector --config {{ vector_config_path }}/{{ vector_config_name }}
+      Restart=on-failure
+      RestartSec=10
+      StartLimitBurst=5
+      StartLimitIntervalSec=60
+      StandardOutput=journal
+      StandardError=journal
+      SyslogIdentifier=vector
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/vector.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Активация службы Vector
+  become: true
+  become_method: "{{ user_become_method }}"
+  ansible.builtin.systemd:
+    name: vector
+    enabled: true
+    state: restarted
+    daemon_reload: true
